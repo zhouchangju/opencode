@@ -246,3 +246,13 @@
     }
   }
 }
+
+[data-component="jgy-part"] {
+  width: 100%;
+  min-height: 200px;
+  margin-top: 4px;
+}
+
+[data-component="jgy-container"] {
+  width: 100%;
+}

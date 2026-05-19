@@ -704,6 +704,16 @@ export type CompactionPart = {
   tail_start_id?: string
 }
 
+export type JgyPart = {
+  id: string
+  sessionID: string
+  messageID: string
+  type: "jgy"
+  answer: Record<string, any>
+  sourceType?: string
+  businessConfig?: Record<string, any>
+}
+
 export type Part =
   | TextPart
   | SubtaskPart
@@ -714,6 +724,7 @@ export type Part =
   | StepFinishPart
   | SnapshotPart
   | PatchPart
+  | JgyPart
   | AgentPart
   | RetryPart
   | CompactionPart

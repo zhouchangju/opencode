@@ -444,6 +444,11 @@ export function getToolInfo(
         icon: "brain",
         title: input.name || i18n.t("ui.tool.skill"),
       }
+    case "render_jgy":
+      return {
+        icon: "dot-grid",
+        title: i18n.t("ui.tool.renderJgy"),
+      }
     default:
       return {
         icon: "mcp",
@@ -1563,7 +1568,7 @@ PART_MAPPING["reasoning"] = function ReasoningPartDisplay(props) {
   const streaming = createMemo(
     () => props.message.role === "assistant" && typeof (props.message as AssistantMessage).time.completed !== "number",
   )
-  const text = () => (data.store.part_text_accum_delta?.[part().id] ?? part().text ?? "").trim()
+  const text = () => (data.store.part_text_accum_delta?.[part().id] ?? part().text).trim()
 
   return (
     <Show when={text()}>
@@ -2370,3 +2375,107 @@ ToolRegistry.register({
     return <BasicTool icon="brain" status={props.status} trigger={trigger()} hideDetails />
   },
 })
+
+ToolRegistry.register({
+  name: "render_jgy",
+  render(props) {
+    const i18n = useI18n()
+    return (
+      <BasicTool
+        {...props}
+        icon="dot-grid"
+        trigger={{ title: i18n.t("ui.tool.renderJgy") }}
+        hideDetails
+      />
+    )
+  },
+})
+
+const scriptLoadCache = new Map<string, Promise<void>>()
+
+function loadScript(src: string): Promise<void> {
+  if (scriptLoadCache.has(src)) return scriptLoadCache.get(src)!
+  if (document.querySelector(`script[src="${src}"]`)) {
+    const p = Promise.resolve()
+    scriptLoadCache.set(src, p)
+    return p
+  }
+  const p = new Promise<void>((resolve, reject) => {
+    const script = document.createElement("script")
+    script.src = src
+    script.onload = () => resolve()
+    script.onerror = reject
+    document.head.appendChild(script)
+  })
+  scriptLoadCache.set(src, p)
+  return p
+}
+
+function loadStyle(href: string): Promise<void> {
+  if (document.querySelector(`link[href="${href}"]`)) return Promise.resolve()
+  return new Promise<void>((resolve, reject) => {
+    const link = document.createElement("link")
+    link.rel = "stylesheet"
+    link.href = href
+    link.onload = () => resolve()
+    link.onerror = reject
+    document.head.appendChild(link)
+  })
+}
+
+PART_MAPPING["jgy"] = function JgyPartDisplay(props: MessagePartProps) {
+  let containerRef: HTMLDivElement | undefined
+  let vueInstance: any = undefined
+
+  const jgyPart = () => props.part as any
+
+  onMount(async () => {
+    if (!containerRef) return
+    try {
+      await loadScript("https://s.thsi.cn/iwencai/js/lib/vuejs/2.5.16/vue.min.js")
+      await loadStyle(
+        "https://s.thsi.cn/cd/iwc-aime-jgy-materials/jgy/7.88.0/jgyRenderLib.3450696b.css",
+      )
+      await loadScript(
+        "https://s.thsi.cn/cd/iwc-aime-jgy-materials/jgy/7.88.0/jgyRenderLib.324ebb1b.js",
+      )
+
+      const Vue = (window as any).Vue
+      const jgyRenderLib = (window as any).jgyRenderLib
+      if (!Vue || !jgyRenderLib) return
+
+      Vue.use(jgyRenderLib, { locale: "zh-CN", themeType: "black" })
+
+      const answer = JSON.parse(JSON.stringify(jgyPart().answer))
+      if (!answer) return
+
+      const vm = new Vue({
+        template:
+          '<jgyRenderSdk :answer="answer" :source-type="sourceType" :business-config="businessConfig"></jgyRenderSdk>',
+        data: {
+          answer,
+          sourceType: jgyPart().sourceType ?? "Iwencai",
+          businessConfig: jgyPart().businessConfig ? JSON.parse(JSON.stringify(jgyPart().businessConfig)) : {},
+        },
+      })
+      vm.$mount()
+      containerRef.appendChild(vm.$el)
+      vueInstance = vm
+    } catch (e) {
+      console.error("Failed to mount jgy component:", e)
+    }
+  })
+
+  onCleanup(() => {
+    if (vueInstance) {
+      vueInstance.$destroy()
+      vueInstance = undefined
+    }
+  })
+
+  return (
+    <div data-component="jgy-part" data-timeline-part-id={props.part.id}>
+      <div ref={containerRef!} data-component="jgy-container" />
+    </div>
+  )
+}

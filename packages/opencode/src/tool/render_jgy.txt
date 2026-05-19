@@ -1,0 +1,11 @@
+- Renders an AIME jgy chart inline in the chat message
+- Takes the answer JSON (chart configuration) from chart-visualization skill output
+- The chart is displayed as a visual component in the message body, not as text
+
+Usage notes:
+  - Call this tool with the answer JSON produced by the chart-visualization skill
+  - The answer JSON comes from running build_chart.py --format json or render_html.py --format json
+  - The tool output will be a JGY_JSON: prefix line — extract only the JSON after the prefix
+  - sourceType: "Iwencai" for domestic, "Ainvest" for overseas (default: Iwencai)
+  - businessConfig: optional component configuration (hiddenTitle, chartTouchOpen, etc.)
+  - This tool is display-only and does not modify any files

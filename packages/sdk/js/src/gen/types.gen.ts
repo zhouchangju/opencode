@@ -381,6 +381,16 @@ export type CompactionPart = {
   auto: boolean
 }
 
+export type JgyPart = {
+  id: string
+  sessionID: string
+  messageID: string
+  type: "jgy"
+  answer: Record<string, any>
+  sourceType?: string
+  businessConfig?: Record<string, any>
+}
+
 export type Part =
   | TextPart
   | {
@@ -399,6 +409,7 @@ export type Part =
   | StepFinishPart
   | SnapshotPart
   | PatchPart
+  | JgyPart
   | AgentPart
   | RetryPart
   | CompactionPart

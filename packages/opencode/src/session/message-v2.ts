@@ -94,6 +94,15 @@ export const PatchPart = Schema.Struct({
 }).annotate({ identifier: "PatchPart" })
 export type PatchPart = Types.DeepMutable<Schema.Schema.Type<typeof PatchPart>>
 
+export const JgyPart = Schema.Struct({
+  ...partBase,
+  type: Schema.Literal("jgy"),
+  answer: Schema.Record(Schema.String, Schema.Any),
+  sourceType: Schema.optional(Schema.String),
+  businessConfig: Schema.optional(Schema.Record(Schema.String, Schema.Any)),
+}).annotate({ identifier: "JgyPart" })
+export type JgyPart = Types.DeepMutable<Schema.Schema.Type<typeof JgyPart>>
+
 export const TextPart = Schema.Struct({
   ...partBase,
   type: Schema.Literal("text"),
@@ -359,6 +368,7 @@ export const Part = Schema.Union([
   StepFinishPart,
   SnapshotPart,
   PatchPart,
+  JgyPart,
   AgentPart,
   RetryPart,
   CompactionPart,
@@ -373,6 +383,7 @@ export type Part =
   | StepFinishPart
   | SnapshotPart
   | PatchPart
+  | JgyPart
   | AgentPart
   | RetryPart
   | CompactionPart
