@@ -31,6 +31,7 @@ import { LspTool } from "./lsp"
 import * as Truncate from "./truncate"
 import { ApplyPatchTool } from "./apply_patch"
 import { RenderJgyTool } from "./render_jgy"
+import { RenderHtmlTool } from "./render_html"
 import { Glob } from "@opencode-ai/core/util/glob"
 import path from "path"
 import { pathToFileURL } from "url"
@@ -137,6 +138,7 @@ export const layer: Layer.Layer<
     const greptool = yield* GrepTool
     const patchtool = yield* ApplyPatchTool
     const renderJgy = yield* RenderJgyTool
+    const renderHtml = yield* RenderHtmlTool
     const skilltool = yield* SkillTool
     const agent = yield* Agent.Service
 
@@ -243,6 +245,7 @@ export const layer: Layer.Layer<
           skill: Tool.init(skilltool),
           patch: Tool.init(patchtool),
           render_jgy: Tool.init(renderJgy),
+          render_html: Tool.init(renderHtml),
           question: Tool.init(question),
           lsp: Tool.init(lsptool),
           plan: Tool.init(plan),
@@ -268,6 +271,7 @@ export const layer: Layer.Layer<
             tool.skill,
             tool.patch,
             tool.render_jgy,
+            tool.render_html,
             ...(flags.experimentalLspTool ? [tool.lsp] : []),
             ...(flags.experimentalPlanMode && flags.client === "cli" ? [tool.plan] : []),
           ],

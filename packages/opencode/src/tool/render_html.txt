@@ -1,0 +1,10 @@
+- Renders HTML content inline in the chat message using a sandboxed iframe
+- The HTML is displayed visually in the message body, not as raw text
+- Rendered inside a sandboxed iframe (allow-scripts) for security isolation
+
+Usage notes:
+  - Call this tool with HTML content to display it inline in the conversation
+  - JavaScript in the HTML will execute within the sandboxed iframe
+  - title: optional display title
+  - height: CSS height string with units, e.g. "400px" (not a bare number)
+  - This tool is display-only and does not modify any files

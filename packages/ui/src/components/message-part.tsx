@@ -449,6 +449,11 @@ export function getToolInfo(
         icon: "dot-grid",
         title: i18n.t("ui.tool.renderJgy"),
       }
+    case "render_html":
+      return {
+        icon: "code",
+        title: "HTML",
+      }
     default:
       return {
         icon: "mcp",
@@ -2391,6 +2396,13 @@ ToolRegistry.register({
   },
 })
 
+ToolRegistry.register({
+  name: "render_html",
+  render(props) {
+    return <BasicTool {...props} icon="code" trigger={{ title: "HTML" }} hideDetails />
+  },
+})
+
 const scriptLoadCache = new Map<string, Promise<void>>()
 
 function loadScript(src: string): Promise<void> {
@@ -2476,6 +2488,35 @@ PART_MAPPING["jgy"] = function JgyPartDisplay(props: MessagePartProps) {
   return (
     <div data-component="jgy-part" data-timeline-part-id={props.part.id}>
       <div ref={containerRef!} data-component="jgy-container" />
+    </div>
+  )
+}
+
+PART_MAPPING["html"] = function HtmlPartDisplay(props: MessagePartProps) {
+  const htmlPart = () => props.part as any
+  let iframeRef: HTMLIFrameElement | undefined
+
+  onMount(() => {
+    if (!iframeRef) return
+    const handler = (event: MessageEvent) => {
+      if (event.source !== iframeRef?.contentWindow) return
+      if (event.data?.type === "html-part-resize") {
+        iframeRef!.style.height = event.data.height + "px"
+      }
+    }
+    window.addEventListener("message", handler)
+    onCleanup(() => window.removeEventListener("message", handler))
+  })
+
+  return (
+    <div data-component="html-part" data-timeline-part-id={props.part.id}>
+      <iframe
+        ref={iframeRef!}
+        data-component="html-container"
+        srcdoc={htmlPart().html}
+        sandbox="allow-scripts"
+        style={{ width: "100%", height: htmlPart().height ?? "400px", border: "none" }}
+      />
     </div>
   )
 }

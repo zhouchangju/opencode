@@ -714,6 +714,16 @@ export type JgyPart = {
   businessConfig?: Record<string, any>
 }
 
+export type HtmlPart = {
+  id: string
+  sessionID: string
+  messageID: string
+  type: "html"
+  html: string
+  title?: string
+  height?: string
+}
+
 export type Part =
   | TextPart
   | SubtaskPart
@@ -725,6 +735,7 @@ export type Part =
   | SnapshotPart
   | PatchPart
   | JgyPart
+  | HtmlPart
   | AgentPart
   | RetryPart
   | CompactionPart

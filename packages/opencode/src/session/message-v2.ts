@@ -103,6 +103,15 @@ export const JgyPart = Schema.Struct({
 }).annotate({ identifier: "JgyPart" })
 export type JgyPart = Types.DeepMutable<Schema.Schema.Type<typeof JgyPart>>
 
+export const HtmlPart = Schema.Struct({
+  ...partBase,
+  type: Schema.Literal("html"),
+  html: Schema.String,
+  title: Schema.optional(Schema.String),
+  height: Schema.optional(Schema.String),
+}).annotate({ identifier: "HtmlPart" })
+export type HtmlPart = Types.DeepMutable<Schema.Schema.Type<typeof HtmlPart>>
+
 export const TextPart = Schema.Struct({
   ...partBase,
   type: Schema.Literal("text"),
@@ -369,6 +378,7 @@ export const Part = Schema.Union([
   SnapshotPart,
   PatchPart,
   JgyPart,
+  HtmlPart,
   AgentPart,
   RetryPart,
   CompactionPart,
@@ -384,6 +394,7 @@ export type Part =
   | SnapshotPart
   | PatchPart
   | JgyPart
+  | HtmlPart
   | AgentPart
   | RetryPart
   | CompactionPart
