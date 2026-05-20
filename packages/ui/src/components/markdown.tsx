@@ -6,6 +6,14 @@ import { checksum } from "@opencode-ai/core/util/encode"
 import { ComponentProps, createEffect, createResource, createSignal, onCleanup, splitProps } from "solid-js"
 import { isServer } from "solid-js/web"
 import { stream } from "./markdown-stream"
+import {
+  extractJgyBlocks,
+  mountJgyPlaceholders,
+  destroyJgyPlaceholders,
+  type JgyBlockMap,
+} from "./jgy-render"
+import { isHtmlLiveFence } from "../util/html-live-markdown"
+import { hydrateHtmlLiveBlocks, cleanupHtmlLiveBlocks } from "../util/html-live"
 
 type Entry = {
   hash: string
@@ -34,7 +42,7 @@ const config = {
   FORBID_TAGS: ["style"],
   FORBID_CONTENTS: ["style", "script"],
   ADD_TAGS: ["svg", "path"],
-  ADD_ATTR: ["d", "viewBox", "preserveAspectRatio", "xmlns"],
+  ADD_ATTR: ["d", "viewBox", "preserveAspectRatio", "xmlns", "data-block-idx", "data-preview-id", "data-jgy-placeholder"],
 }
 
 const iconPaths = {
@@ -45,6 +53,37 @@ const iconPaths = {
 function sanitize(html: string) {
   if (!DOMPurify.isSupported) return ""
   return DOMPurify.sanitize(html, config)
+}
+
+// html-live code block handling:
+// Extract ```html / ```html-live fences and store the raw HTML in a Map.
+// Replace code blocks with lightweight placeholder divs (just an index marker)
+// that survive marked.parse + DOMPurify. The actual HTML is read from the Map
+// during hydration, avoiding any encoding/sanitization issues with data attributes.
+type HtmlLiveBlockMap = Map<number, { html: string }>
+
+function extractHtmlLiveBlocks(src: string): { html: string; hasHtmlLive: boolean; blocks: HtmlLiveBlockMap } {
+  const blocks: HtmlLiveBlockMap = new Map()
+  let hasHtmlLive = false
+  let blockIndex = 0
+  // Closed code blocks: ```lang\n...\n```
+  let html = src.replace(/(^|\n)(`{3,})(html-live|html|htm)\b[^\n]*\n([\s\S]*?)\n\2/g, (match, prefix: string, _ticks: string, lang: string, code: string) => {
+    if (!isHtmlLiveFence(lang)) return match
+    hasHtmlLive = true
+    const idx = blockIndex++
+    blocks.set(idx, { html: code })
+    return `${prefix}<div class="html-live-block" data-block-idx="${idx}"></div>`
+  })
+  // Open/unclosed code blocks (streaming): ```lang\n... (no closing ```)
+  html = html.replace(/(^|\n)(`{3,})(html-live|html|htm)\b[^\n]*\n([\s\S]*)$/g, (match, prefix: string, _ticks: string, lang: string, code: string) => {
+    if (!isHtmlLiveFence(lang)) return match
+    if (code.includes("html-live-block")) return match
+    hasHtmlLive = true
+    const idx = blockIndex++
+    blocks.set(idx, { html: code })
+    return `${prefix}<div class="html-live-block" data-block-idx="${idx}"></div>`
+  })
+  return { html, hasHtmlLive, blocks }
 }
 
 function escape(text: string) {
@@ -251,6 +290,11 @@ export function Markdown(
   const marked = useMarked()
   const i18n = useI18n()
   const [root, setRoot] = createSignal<HTMLDivElement>()
+
+  let currentJgyBlocks: JgyBlockMap = new Map()
+  let currentHtmlLiveBlocks: HtmlLiveBlockMap = new Map()
+  const jgyGeneration = { current: 0 }
+
   const [html] = createResource(
     () => ({
       text: local.text,
@@ -261,9 +305,19 @@ export function Markdown(
       if (isServer) return fallback(src.text)
       if (!src.text) return ""
 
+      // Extract <jgy> blocks before markdown parsing to avoid DOMPurify stripping them
+      const { text: processedText, blocks } = extractJgyBlocks(src.text, checksum)
+      currentJgyBlocks = blocks
+
+      // Extract html-live code blocks and replace with placeholder divs directly.
+      // This bypasses marked.parse + DOMPurify for html-live content, which is
+      // correct because the HTML will be rendered in a sandboxed iframe.
+      const { html: textWithPlaceholders, hasHtmlLive, blocks: htmlLiveBlocks } = extractHtmlLiveBlocks(processedText)
+      currentHtmlLiveBlocks = htmlLiveBlocks
+
       const base = src.key ?? checksum(src.text)
       return Promise.all(
-        stream(src.text, src.streaming).map(async (block, index) => {
+        stream(textWithPlaceholders, src.streaming).map(async (block, index) => {
           const hash = checksum(block.raw)
           const key = base ? `${base}:${index}:${block.mode}` : hash
 
@@ -330,10 +384,32 @@ export function Markdown(
         copy: i18n.t("ui.message.copy"),
         copied: i18n.t("ui.message.copied"),
       }))
+
+    // Mount jgy charts from inline ```jgy tags after DOM is ready
+    if (currentJgyBlocks.size > 0) {
+      jgyGeneration.current++
+      mountJgyPlaceholders(container, currentJgyBlocks, jgyGeneration)
+    }
+
+    // Hydrate html-live blocks after morphdom updates the DOM
+    const hostEl = container
+      .closest("[data-timeline-part-id]")
+      ?.querySelector("[data-component='html-live-iframes-host']") ?? undefined
+    if (currentHtmlLiveBlocks.size > 0) {
+      hydrateHtmlLiveBlocks(container, currentHtmlLiveBlocks, {
+        final: !local.streaming,
+        host: hostEl,
+      })
+    }
   })
 
   onCleanup(() => {
     if (copyCleanup) copyCleanup()
+    const container = root()
+    if (container) {
+      destroyJgyPlaceholders(container)
+      cleanupHtmlLiveBlocks(container)
+    }
   })
 
   return (

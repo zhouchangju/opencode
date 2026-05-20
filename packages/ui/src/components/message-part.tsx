@@ -444,6 +444,16 @@ export function getToolInfo(
         icon: "brain",
         title: input.name || i18n.t("ui.tool.skill"),
       }
+    case "render_jgy":
+      return {
+        icon: "dot-grid",
+        title: i18n.t("ui.tool.renderJgy"),
+      }
+    case "render_html":
+      return {
+        icon: "code",
+        title: "HTML",
+      }
     default:
       return {
         icon: "mcp",
@@ -1512,6 +1522,9 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
   })
   const [copied, setCopied] = createSignal(false)
 
+  let bodyRef: HTMLDivElement | undefined
+  let iframesHostRef: HTMLDivElement | undefined
+
   const handleCopy = async () => {
     const content = text()
     if (!content) return
@@ -1524,11 +1537,12 @@ PART_MAPPING["text"] = function TextPartDisplay(props) {
   return (
     <Show when={text()}>
       <div data-component="text-part" data-timeline-part-id={part().id}>
-        <div data-slot="text-part-body">
+        <div data-slot="text-part-body" ref={bodyRef!}>
           <Show when={streaming()} fallback={<Markdown text={text()} cacheKey={part().id} streaming={false} />}>
             <PacedMarkdown text={text()} cacheKey={part().id} streaming={streaming()} />
           </Show>
         </div>
+        <div ref={iframesHostRef!} data-component="html-live-iframes-host" />
         <Show when={showCopy()}>
           <div data-slot="text-part-copy-wrapper" data-interrupted={interrupted() ? "" : undefined}>
             <Tooltip
@@ -1565,12 +1579,18 @@ PART_MAPPING["reasoning"] = function ReasoningPartDisplay(props) {
   )
   const text = () => (data.store.part_text_accum_delta?.[part().id] ?? part().text ?? "").trim()
 
+  let bodyRef: HTMLDivElement | undefined
+  let iframesHostRef: HTMLDivElement | undefined
+
   return (
     <Show when={text()}>
       <div data-component="reasoning-part" data-timeline-part-id={part().id}>
-        <Show when={streaming()} fallback={<Markdown text={text()} cacheKey={part().id} streaming={false} />}>
-          <PacedMarkdown text={text()} cacheKey={part().id} streaming={streaming()} />
-        </Show>
+        <div ref={bodyRef!}>
+          <Show when={streaming()} fallback={<Markdown text={text()} cacheKey={part().id} streaming={false} />}>
+            <PacedMarkdown text={text()} cacheKey={part().id} streaming={streaming()} />
+          </Show>
+        </div>
+        <div ref={iframesHostRef!} data-component="html-live-iframes-host" />
       </div>
     </Show>
   )
@@ -2344,6 +2364,40 @@ ToolRegistry.register({
           </div>
         </Show>
       </BasicTool>
+    )
+  },
+})
+
+ToolRegistry.register({
+  name: "render_jgy",
+  render(props) {
+    const i18n = useI18n()
+    const pending = () => props.status === "pending" || props.status === "running"
+    return (
+      <BasicTool
+        {...props}
+        icon="dot-grid"
+        trigger={{
+          title: i18n.t("ui.tool.renderJgy"),
+        }}
+      />
+    )
+  },
+})
+
+ToolRegistry.register({
+  name: "render_html",
+  render(props) {
+    const i18n = useI18n()
+    const pending = () => props.status === "pending" || props.status === "running"
+    return (
+      <BasicTool
+        {...props}
+        icon="code"
+        trigger={{
+          title: "HTML",
+        }}
+      />
     )
   },
 })
