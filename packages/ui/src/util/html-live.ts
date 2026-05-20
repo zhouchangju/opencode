@@ -4,6 +4,7 @@
 const SANDBOX =
   "allow-scripts allow-forms allow-modals allow-popups allow-downloads"
 const MIN_HEIGHT = 120
+const MAX_HEIGHT = 1000
 
 // Edge-aware scroll forwarder: only forwards wheel/touch to parent when
 // iframe cannot consume the scroll in that direction.
@@ -123,8 +124,7 @@ code{background:var(--ui-surface);padding:1px 6px;border-radius:4px}
 // Enforcement: !important floor injected at <body> start. Only locks 4
 // critical properties so LLM can still design freely inside.
 const ENFORCEMENT_BASE = `html,body{background:transparent!important;color:var(--ui-fg)!important;font-family:var(--ui-font)!important}
-html{overflow:hidden!important}
-body{font-size:14px!important;margin:0!important;overflow:hidden!important}
+body{font-size:14px!important;margin:0!important}
 ::-webkit-scrollbar{width:8px!important;height:8px!important}
 ::-webkit-scrollbar-thumb{background:var(--ui-border)!important;border-radius:4px!important}`
 
@@ -293,10 +293,13 @@ function ensureParentListener() {
     for (const entry of cache.values()) {
       if (entry.iframe?.contentWindow !== e.source) continue
       if (data.type === "h") {
-        const h = Math.max(MIN_HEIGHT, Math.ceil(Number(data.h) || MIN_HEIGHT))
+        const raw = Math.ceil(Number(data.h) || MIN_HEIGHT)
+        const h = Math.min(Math.max(MIN_HEIGHT, raw), MAX_HEIGHT)
         if (Math.abs(h - entry.lastHeight) < 2) break
         entry.iframe.style.height = `${h}px`
         entry.lastHeight = h
+        const overflowing = raw > MAX_HEIGHT
+        entry.iframe.style.overflowY = overflowing ? "auto" : "hidden"
       } else if (data.type === "ready") {
         entry.ready = true
         if (entry.pendingMessage) {
@@ -382,6 +385,7 @@ function createIframe(initialSrcdoc: string): HTMLIFrameElement {
   iframe.style.border = "0"
   iframe.style.overflow = "hidden"
   iframe.style.minHeight = `${MIN_HEIGHT}px`
+  iframe.style.maxHeight = `${MAX_HEIGHT}px`
   iframe.srcdoc = initialSrcdoc
   return iframe
 }
